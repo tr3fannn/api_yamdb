@@ -6,13 +6,12 @@ from .validators import validate_username
 
 class User(AbstractUser):
 
-
     class Roles(models.TextChoices):
         USER = 'user', 'Пользователь'
         MODERATOR = 'moderator', 'Модератор'
         ADMINISTRATOR = 'admin', 'Администратор'
 
-        
+
     username = models.CharField(
         max_length=150,
         unique=True,
