@@ -19,8 +19,8 @@ INSTALLED_APPS = [
     # Other.
     'rest_framework',
     # Local.
-    'api.apps.ApiConfig',
-    'reviews.apps.ReviewsConfig',
+    'api',
+    'reviews',
 ]
 
 MIDDLEWARE = [
