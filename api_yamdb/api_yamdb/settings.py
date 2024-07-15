@@ -21,7 +21,7 @@ INSTALLED_APPS = [
     # Local.
     'api',
     'reviews',
-    'users'
+    'users',
 ]
 
 MIDDLEWARE = [
