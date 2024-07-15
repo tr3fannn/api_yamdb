@@ -16,17 +16,12 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-<<<<<<< HEAD
     # Other.
     'rest_framework',
     # Local.
     'api',
     'reviews',
-=======
-    'users.apps.UsersConfig',
-    'reviews.apps.ReviewsConfig',
-    'api.apps.ApiConfig'
->>>>>>> eef39146ebd7de9f45f043a7417f07a84c4074b1
+    'users'
 ]
 
 MIDDLEWARE = [
@@ -61,13 +56,8 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'api_yamdb.wsgi.application'
 
-<<<<<<< HEAD
-=======
 AUTH_USER_MODEL = 'users.User'
 
-# Database
-
->>>>>>> eef39146ebd7de9f45f043a7417f07a84c4074b1
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
