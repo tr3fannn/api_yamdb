@@ -11,11 +11,13 @@ class Category(models.Model):
     name = models.CharField(
         max_length=256,
         verbose_name='Название',
+        help_text='Укажите название',
     )
     slug = models.SlugField(
         max_length=50,
         unique=True,
         verbose_name='Слаг',
+        help_text='Укажите слаг',
     )
 
     class Meta:
@@ -32,11 +34,13 @@ class Genre(models.Model):
     name = models.CharField(
         max_length=256,
         verbose_name='Название',
+        help_text='Укажите название',
     )
     slug = models.SlugField(
         max_length=50,
         unique=True,
         verbose_name='Слаг',
+        help_text='Укажите слаг',
     )
 
     class Meta:
@@ -53,27 +57,42 @@ class Title(models.Model):
     name = models.CharField(
         max_length=256,
         verbose_name='Название',
+        help_text='Укажите название',
     )
     year = models.IntegerField(
         verbose_name='Год',
+        validators=[
+            MinValueValidator(0),
+            MaxValueValidator(2024),
+        ],
+        help_text='Укажите год',
+    )
+    rating = models.IntegerField(
+        default=0,
+        verbose_name='Рейтинг',
+        help_text='Укажите рейтинг',
     )
     description = models.TextField(
         blank=True,
         null=True,
         default=None,
         verbose_name='Описание',
+        help_text='Укажите описание',
     )
-    category = models.OneToOneField(
+    category = models.ForeignKey(
         Category,
         related_name='titles',
         on_delete=models.SET_NULL,
         null=True,
         verbose_name='Категория',
+        help_text='Укажите категорию',
     )
     genre = models.ManyToManyField(
         Genre,
         related_name='titles',
         verbose_name='Жанр',
+        blank=True,
+        help_text='Укажите жанр',
     )
 
     class Meta:
@@ -89,6 +108,7 @@ class Review(models.Model):
 
     text = models.TextField(
         verbose_name='Текст',
+        help_text='Укажите текст',
     )
     score = models.IntegerField(
         validators=[
@@ -96,22 +116,26 @@ class Review(models.Model):
             MaxValueValidator(10),
         ],
         verbose_name='Оценка',
+        help_text='Укажите оценку',
     )
     pub_date = models.DateTimeField(
         auto_now_add=True,
         verbose_name='Дата Публикации',
+        help_text='Укажите дату публикации',
     )
     author = models.ForeignKey(
         User,
         related_name='reviews',
         on_delete=models.CASCADE,
         verbose_name='Автор',
+        help_text='Укажите автора',
     )
     title = models.ForeignKey(
         Title,
         related_name='reviews',
         on_delete=models.CASCADE,
         verbose_name='Произведение',
+        help_text='Укажите произведение',
     )
 
     class Meta:
@@ -126,22 +150,25 @@ class Review(models.Model):
 class Comment(models.Model):
     """Модель, которая описывает комментарий к обзору."""
 
-    text = models.TextField()
+    text = models.TextField(verbose_name='Текст', help_text='Укажите текст')
     pub_date = models.DateTimeField(
         auto_now_add=True,
         verbose_name='Дата Публикации',
+        help_text='Укажите дату публикации',
     )
     author = models.ForeignKey(
         User,
         related_name='comments',
         on_delete=models.CASCADE,
         verbose_name='Автор',
+        help_text='Укажите автора',
     )
     review = models.ForeignKey(
         Review,
         related_name='comments',
         on_delete=models.CASCADE,
         verbose_name='Обзор',
+        help_text='Укажите обзор',
     )
 
     class Meta:
