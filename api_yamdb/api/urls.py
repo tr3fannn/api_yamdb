@@ -1,57 +1,92 @@
-from django.urls import include, path
-from rest_framework.routers import DefaultRouter
+from django.urls import path, include
 
 from .views import (
+    CreateUserView,
+    ObtainTokenView,
+    UserViewSet,
     CategoryViewSet,
-    CommentViewSet,
     GenreViewSet,
-    ReviewViewSet,
-    TitleViewSet,
 )
 
-router = DefaultRouter()
-router.register('categories', CategoryViewSet, basename='categories')
-router.register('genres', GenreViewSet, basename='genres')
-router.register('titles', TitleViewSet, basename='titles')
+app_name = 'api_v1'
+
+users = [
+    path('auth/signup/', CreateUserView.as_view()),
+    path('auth/token/', ObtainTokenView.as_view()),
+    path(
+        'users/',
+        UserViewSet.as_view(
+            {
+                'get': 'list',
+                'post': 'create',
+            }
+        ),
+    ),
+    path(
+        'users/<str:username>/',
+        UserViewSet.as_view(
+            {
+                'get': 'retrieve',
+                'patch': 'partial_update',
+                'delete': 'destroy',
+            }
+        ),
+    ),
+    path(
+        'users/me/',
+        UserViewSet.as_view(
+            {
+                'get': 'retrieve',
+                'patch': 'partial_update',
+            }
+        ),
+    ),
+]
+
+category = [
+    path(
+        'categories/',
+        CategoryViewSet.as_view(
+            {
+                'get': 'list',
+                'post': 'create',
+            }
+        ),
+    ),
+    path(
+        'categories/<slug:cat_slug>/',
+        CategoryViewSet.as_view(
+            {
+                'patch': 'partial_update',
+                'delete': 'destroy',
+            }
+        ),
+    ),
+]
+
+genre = [
+    path(
+        'genres/',
+        GenreViewSet.as_view(
+            {
+                'get': 'list',
+                'post': 'create',
+            }
+        ),
+    ),
+    path(
+        'genres/<slug:gen_slug>/',
+        GenreViewSet.as_view(
+            {
+                'patch': 'partial_update',
+                'delete': 'destroy',
+            }
+        ),
+    ),
+]
 
 urlpatterns = [
-    path(
-        'titles/<int:title_id>/reviews/<int:pk>/',
-        ReviewViewSet.as_view(
-            {
-                'get': 'retrieve',
-                'patch': 'partial_update',
-                'delete': 'destroy',
-            }
-        ),
-    ),
-    path(
-        'titles/<int:title_id>/reviews/',
-        ReviewViewSet.as_view(
-            {
-                'get': 'list',
-                'post': 'create',
-            }
-        ),
-    ),
-    path(
-        'titles/<int:title_id>/reviews/<int:pk>/comments/',
-        CommentViewSet.as_view(
-            {
-                'get': 'list',
-                'post': 'create',
-            }
-        ),
-    ),
-    path(
-        'titles/<int:title_id>/reviews/<int:review_id>/comments/<int:pk>/',
-        CommentViewSet.as_view(
-            {
-                'get': 'retrieve',
-                'patch': 'partial_update',
-                'delete': 'destroy',
-            }
-        ),
-    ),
-    path('', include(router.urls)),
+    path('', include(users)),
+    path('', include(category)),
+    path('', include(genre)),
 ]

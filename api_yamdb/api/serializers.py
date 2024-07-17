@@ -1,54 +1,46 @@
+from django.contrib.auth import get_user_model
 from rest_framework import serializers
-from rest_framework.relations import SlugRelatedField
-from reviews.models import Category, Comment, Genre, Review, Title
+
+from reviews.models import (
+    Category,
+    Genre,
+)
+
+User = get_user_model()
 
 
-class CategorySerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Category
-        fields = ('name', 'slug')
-
-
-class GenreSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Genre
-        fields = ('name', 'slug')
-
-
-class TitleSerializer(serializers.ModelSerializer):
-    category = CategorySerializer(read_only=True)
-    genre = GenreSerializer(many=True, read_only=True)
-    rating = serializers.IntegerField(read_only=True)
+class UserSerializer(serializers.ModelSerializer):
+    """Сериализатор для модели пользователя."""
 
     class Meta:
-        model = Title
+        model = User
         fields = (
-            'id',
-            'name',
-            'year',
-            'rating',
-            'description',
-            'genre',
-            'category',
+            'username',
+            'email',
+            'first_name',
+            'last_name',
+            'bio',
+            'role',
         )
 
 
-class ReviewSerializer(serializers.ModelSerializer):
-    author = serializers.SlugRelatedField(
-        read_only=True, slug_field='username'
-    )
+class CategorySerializer(serializers.ModelSerializer):
+    """Сериализатор для модели категорий."""
 
     class Meta:
-        model = Review
-        fields = ('id', 'text', 'author', 'score', 'pub_date')
-        read_only_fields = ('id', 'author', 'pub_date')
+        model = Category
+        fields = (
+            'name',
+            'slug',
+        )
 
 
-class CommentSerializer(serializers.ModelSerializer):
-    author = serializers.SlugRelatedField(
-        read_only=True, slug_field='username'
-    )
+class GenreSerializer(serializers.ModelSerializer):
+    """Сериализатор для модели жанров."""
 
     class Meta:
-        model = Comment
-        exclude = ('review',)
+        model = Genre
+        fields = (
+            'name',
+            'slug',
+        )

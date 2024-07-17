@@ -1,8 +1,60 @@
-from django.contrib.auth import get_user_model
-from django.core.validators import MaxValueValidator, MinValueValidator
+from django.contrib.auth.models import AbstractUser
+from django.core.validators import (
+    MaxValueValidator,
+    MinValueValidator,
+    RegexValidator,
+)
 from django.db import models
 
-User = get_user_model()
+
+class User(AbstractUser):
+    """Модель, которая описывает пользователя."""
+
+    class Roles(models.TextChoices):
+        USER = 'user', 'Пользователь'
+        MODERATOR = 'moderator', 'Модератор'
+        ADMIN = 'admin', 'Администратор'
+
+    username = models.CharField(
+        unique=True,
+        max_length=150,
+        validators=(RegexValidator(regex=r'^[\w.@+-]+\Z'),),
+        verbose_name='Имя Пользователя',
+    )
+    email = models.EmailField(
+        unique=True,
+        max_length=254,
+        verbose_name='Электронная Почта',
+    )
+    first_name = models.CharField(
+        max_length=150,
+        null=True,
+        default=None,
+        verbose_name='Имя',
+    )
+    second_name = models.CharField(
+        max_length=150,
+        null=True,
+        default=None,
+        verbose_name='Фамилия',
+    )
+    bio = models.TextField(
+        null=True,
+        default=None,
+        verbose_name='О себе',
+    )
+    role = models.CharField(
+        max_length=9,
+        choices=Roles.choices,
+        default=Roles.USER,
+        verbose_name='Роль',
+    )
+    code = models.CharField(
+        max_length=150,
+        null=True,
+        default=None,
+        verbose_name='Код',
+    )
 
 
 class Category(models.Model):
@@ -16,6 +68,7 @@ class Category(models.Model):
         max_length=50,
         unique=True,
         verbose_name='Слаг',
+        validators=(RegexValidator(regex=r'^[-a-zA-Z0-9_]+$'),),
     )
 
     class Meta:
@@ -37,6 +90,7 @@ class Genre(models.Model):
         max_length=50,
         unique=True,
         verbose_name='Слаг',
+        validators=(RegexValidator(regex=r'^[-a-zA-Z0-9_]+$'),),
     )
 
     class Meta:
@@ -57,13 +111,17 @@ class Title(models.Model):
     year = models.IntegerField(
         verbose_name='Год',
     )
+    rating = models.IntegerField(
+        default=0,
+        verbose_name='Рейтинг',
+    )
     description = models.TextField(
         blank=True,
         null=True,
         default=None,
         verbose_name='Описание',
     )
-    category = models.OneToOneField(
+    category = models.ForeignKey(
         Category,
         related_name='titles',
         on_delete=models.SET_NULL,
