@@ -57,6 +57,7 @@ class User(AbstractUser):
     )
 
 
+
 class Category(models.Model):
     """Модель, которая описывает категорию произведения."""
 

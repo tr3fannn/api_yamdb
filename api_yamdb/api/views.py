@@ -20,6 +20,7 @@ from .serializers import (
     CategorySerializer,
     GenreSerializer,
 )
+from .permissions import AdminOnlyExceptUpdateDestroy
 
 User = get_user_model()
 
@@ -88,8 +89,47 @@ class ObtainTokenView(views.APIView):
 
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
-    permission_classes = (permissions.IsAuthenticated,)
+    permission_classes = (AdminOnlyExceptUpdateDestroy,)
     serializer_class = UserSerializer
+    lookup_field = 'username'
+    filter_backends = (filters.SearchFilter,)
+    search_fields = ('=username',)
+
+    def get_permissions(self):
+        if self.action == 'retrieve':
+            if self.kwargs.get('username') == 'me':
+                return (permissions.IsAuthenticated(),)
+        return super().get_permissions()
+
+    def retrieve(self, request, username):
+        if username == 'me':
+            me = get_object_or_404(User, pk=request.user.id)
+            serializer = self.get_serializer(me)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return super().retrieve(request, username)
+
+    def partial_update(self, request, username):
+        if username == 'me':
+            me = get_object_or_404(User, pk=request.user.id)
+            data = request.data.copy()
+            if (
+                'role' in data
+                and not request.user.is_superuser
+            ):
+                data['role'] = me.role
+            serializer = self.get_serializer(me, data=data, partial=True)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return super().partial_update(request, username)
+
+    def destroy(self, request, username):
+        if username == 'me':
+            return Response(
+                {'error': 'Нельзя удалить себя!'},
+                status=status.HTTP_405_METHOD_NOT_ALLOWED
+            )
+        return super().destroy(request, username)
 
 
 class CategoryGenreBaseViewSet(viewsets.ModelViewSet):
@@ -130,6 +170,7 @@ class CategoryViewSet(CategoryGenreBaseViewSet):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
     lookup_url_kwarg = 'cat_slug'
+    search_fields = ('name',)
 
 
 class GenreViewSet(CategoryGenreBaseViewSet):
@@ -138,3 +179,4 @@ class GenreViewSet(CategoryGenreBaseViewSet):
     queryset = Genre.objects.all()
     serializer_class = GenreSerializer
     lookup_url_kwarg = 'gen_slug'
+    search_fields = ('name',)
