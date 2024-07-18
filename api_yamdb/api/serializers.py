@@ -1,10 +1,6 @@
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
-
-from reviews.models import (
-    Category,
-    Genre,
-)
+from reviews.models import Category, Comment, Genre, Review, Title
 
 User = get_user_model()
 
@@ -44,3 +40,87 @@ class GenreSerializer(serializers.ModelSerializer):
             'name',
             'slug',
         )
+
+
+class TitleSerializer(serializers.ModelSerializer):
+    """Сериализатор для модели произведений."""
+
+    category = CategorySerializer(read_only=True)
+    genre = GenreSerializer(read_only=True, many=True)
+    rating = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = Title
+        fields = (
+            'id',
+            'name',
+            'year',
+            'rating',
+            'description',
+            'genre',
+            'category',
+        )
+
+
+class TitleCreateSerializer(serializers.ModelSerializer):
+    """Сериализатор только для создания произведений."""
+
+    category = serializers.SlugRelatedField(
+        slug_field='slug',
+        queryset=Category.objects.all(),
+    )
+    genre = serializers.SlugRelatedField(
+        slug_field='slug',
+        queryset=Genre.objects.all(),
+        many=True,
+    )
+
+    class Meta:
+        model = Title
+        fields = (
+            'id',
+            'name',
+            'year',
+            'description',
+            'genre',
+            'category',
+        )
+
+
+class ReviewSerializer(serializers.ModelSerializer):
+    """Сериализатор для модели отзывов."""
+
+    author = serializers.SlugRelatedField(
+        slug_field='username',
+        read_only=True,
+    )
+
+    class Meta:
+        model = Review
+        fields = (
+            'id',
+            'text',
+            'author',
+            'score',
+            'pub_date',
+        )
+        read_only_fields = ('title',)
+
+
+class CommentSerializer(serializers.ModelSerializer):
+    """Сериализатор для модели комментариев."""
+
+    author = serializers.SlugRelatedField(
+        slug_field='username',
+        read_only=True,
+    )
+
+    class Meta:
+        model = Comment
+        fields = (
+            'id',
+            'text',
+            'author',
+            'pub_date',
+        )
+        read_only_fields = ('review',)

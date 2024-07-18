@@ -2,25 +2,40 @@ from secrets import token_hex
 
 from django.contrib.auth import get_user_model
 from django.core.mail import send_mail
+from django.db.models import Avg
 from django.shortcuts import get_object_or_404
-from rest_framework import filters
-from rest_framework import permissions
-from rest_framework import views
-from rest_framework import viewsets
-from rest_framework import status
+from rest_framework import (
+    filters,
+    mixins,
+    permissions,
+    status,
+    views,
+    viewsets,
+)
+from rest_framework.exceptions import (
+    ValidationError,
+)
+from rest_framework.filters import SearchFilter
+from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
+from reviews.models import Category, Genre, Review, Title
 
-from reviews.models import (
-    Category,
-    Genre,
+from .permissions import (
+    AdminOnlyExceptUpdateDestroy,
+    check_admin_permission,
+    check_authentication,
+    check_self_action,
 )
 from .serializers import (
-    UserSerializer,
     CategorySerializer,
+    CommentSerializer,
     GenreSerializer,
+    ReviewSerializer,
+    TitleCreateSerializer,
+    TitleSerializer,
+    UserSerializer,
 )
-from .permissions import AdminOnlyExceptUpdateDestroy
 
 User = get_user_model()
 
@@ -31,15 +46,10 @@ class CreateUserView(views.APIView):
     def _manage_code(self, username, email):
         """Отправка кода подтверждения и привязка его к пользователю."""
         code = token_hex(16)
-        send_mail(
-            'Регистрация на YamDB',
-            f'{code}',
-            'YamDB@ya.ru',
-            [email]
-        )
         user = User.objects.get(username=username, email=email)
         user.code = code
         user.save()
+        send_mail('Регистрация на YamDB', f'{code}', 'YamDB@ya.ru', [email])
 
     def post(self, request):
         """Логика регистрации нового пользователя."""
@@ -112,10 +122,7 @@ class UserViewSet(viewsets.ModelViewSet):
         if username == 'me':
             me = get_object_or_404(User, pk=request.user.id)
             data = request.data.copy()
-            if (
-                'role' in data
-                and not request.user.is_superuser
-            ):
+            if 'role' in data and not request.user.is_superuser:
                 data['role'] = me.role
             serializer = self.get_serializer(me, data=data, partial=True)
             serializer.is_valid(raise_exception=True)
@@ -127,7 +134,7 @@ class UserViewSet(viewsets.ModelViewSet):
         if username == 'me':
             return Response(
                 {'error': 'Нельзя удалить себя!'},
-                status=status.HTTP_405_METHOD_NOT_ALLOWED
+                status=status.HTTP_405_METHOD_NOT_ALLOWED,
             )
         return super().destroy(request, username)
 
@@ -140,27 +147,27 @@ class CategoryGenreBaseViewSet(viewsets.ModelViewSet):
     lookup_field = 'slug'
 
     def create(self, request, *args, **kwargs):
-        """Проверка прав POST при запросе."""
-        if not request.user.is_authenticated:
-            return Response(status=status.HTTP_401_UNAUTHORIZED)
-        if request.user.role in ('user', 'moderator'):
-            return Response(status=status.HTTP_403_FORBIDDEN)
+        """
+        Проверка прав при создании объекта.
+        """
+        if error_response := check_admin_permission(request):
+            return error_response
         return super().create(request, *args, **kwargs)
 
     def partial_update(self, request, *args, **kwargs):
-        """Проверка прав PATCH при запросе."""
-        if not request.user.is_authenticated:
-            return Response(status=status.HTTP_401_UNAUTHORIZED)
-        if request.user.role in ('user', 'moderator'):
-            return Response(status=status.HTTP_403_FORBIDDEN)
+        """
+        Запрещает обновление объектов.
+        """
+        if error_response := check_admin_permission(request):
+            return error_response
         return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
     def destroy(self, request, *args, **kwargs):
-        """Проверка прав DELETE при запросе."""
-        if not request.user.is_authenticated:
-            return Response(status=status.HTTP_401_UNAUTHORIZED)
-        if request.user.role in ('user', 'moderator'):
-            return Response(status=status.HTTP_403_FORBIDDEN)
+        """
+        Проверка прав при удалении объекта.
+        """
+        if error_response := check_admin_permission(request):
+            return error_response
         return super().destroy(request, *args, **kwargs)
 
 
@@ -180,3 +187,209 @@ class GenreViewSet(CategoryGenreBaseViewSet):
     serializer_class = GenreSerializer
     lookup_url_kwarg = 'gen_slug'
     search_fields = ('name',)
+
+
+class ReviewViewSet(viewsets.ModelViewSet):
+    """ViewSet для отзывов."""
+
+    serializer_class = ReviewSerializer
+    lookup_url_kwarg = 'review_id'
+
+    def _get_special_title(self):
+        """Логика получения произведения."""
+        return get_object_or_404(Title, pk=self.kwargs.get('title_id'))
+
+    def _save_avg_rating(self):
+        """Логика сохранения средней оценки."""
+        title = self._get_special_title()
+        title.rating = int(title.reviews.aggregate(Avg('score'))['score__avg'])
+        title.save()
+
+    def get_queryset(self):
+        """Логика получения отзывов."""
+        return self._get_special_title().reviews.all()
+
+    def perform_create(self, serializer):
+        """
+        Логика создания отзыва.
+        """
+        title = self._get_special_title()
+        if title.reviews.filter(author=self.request.user).exists():
+            raise ValidationError(
+                detail='Вы уже имеете отзыв на это произведение!',
+                code=status.HTTP_400_BAD_REQUEST,
+            )
+        serializer.save(author=self.request.user, title=title)
+        self._save_avg_rating()
+
+    def create(self, request, *args, **kwargs):
+        """
+        Проверка прав при создании отзыва.
+        """
+        if error_response := check_authentication(self.request):
+            return error_response
+        return super().create(request, *args, **kwargs)
+
+    def partial_update(self, request, *args, **kwargs):
+        """
+        Логика обновления отзыва.
+        """
+        if not (error_response := check_authentication(self.request)) is None:
+            return error_response
+        if (
+            not (
+                error_response := check_self_action(
+                    self.request, self.get_object().author
+                )
+            )
+            is None
+        ):
+            raise error_response
+        self._save_avg_rating()
+        return super().partial_update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        """
+        Логика удаления отзыва.
+        """
+        if not (error_response := check_authentication(self.request)) is None:
+            return error_response
+        if (
+            not (
+                error_response := check_self_action(
+                    self.request, self.get_object().author
+                )
+            )
+            is None
+        ):
+            raise error_response
+        self._save_avg_rating()
+        return super().destroy(request, *args, **kwargs)
+
+
+class CommentViewSet(viewsets.ModelViewSet):
+    """ViewSet для комментариев."""
+
+    serializer_class = CommentSerializer
+    lookup_url_kwarg = 'comment_id'
+    # permission_classes = (CommentPermissions,)
+
+    def _get_special_review(self):
+        """Логика получения отзыва."""
+        return get_object_or_404(Review, pk=self.kwargs.get('review_id'))
+
+    def get_queryset(self):
+        """Логика получения комментариев."""
+        return self._get_special_review().comments.all()
+
+    def perform_create(self, serializer):
+        """Логика создания комментария."""
+        review = self._get_special_review()
+        serializer.save(author=self.request.user, review=review)
+
+    def partial_update(self, request, *args, **kwargs):
+        """
+        Логика обновления комментария.
+        """
+        if (
+            not (
+                error_response := check_self_action(
+                    self.request, self.get_object().author
+                )
+            )
+            is None
+        ):
+            raise error_response
+        return super().partial_update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        """
+        Логика удаления комментария.
+        """
+        if (
+            not (
+                error_response := check_self_action(
+                    self.request, self.get_object().author
+                )
+            )
+            is None
+        ):
+            raise error_response
+        return super().destroy(request, *args, **kwargs)
+
+
+class TitleViewSetDetail(
+    mixins.RetrieveModelMixin,
+    mixins.DestroyModelMixin,
+    mixins.UpdateModelMixin,
+    viewsets.GenericViewSet,
+):
+    """Класс ViewSet с миксинами для получения одного произведения
+    и для изменения произведения.
+    """
+
+    queryset = Title.objects.all()
+    lookup_url_kwarg = 'title_id'
+
+    def update(self, request, *args, **kwargs):
+        if kwargs.get('partial') is False:
+            return Response(
+                "Method Not Allowed", status.HTTP_405_METHOD_NOT_ALLOWED
+            )
+        if resp_error := check_admin_permission(request):
+            return resp_error
+        return super().update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        if resp_error := check_admin_permission(request):
+            return resp_error
+        return super().destroy(request, *args, **kwargs)
+
+    def get_serializer_class(self):
+        """Метод определяющий какой сериализатор использовать."""
+        if self.request.method == 'GET':
+            return TitleSerializer
+        return TitleCreateSerializer
+
+
+class TitleViewSetListCreate(
+    mixins.ListModelMixin, mixins.CreateModelMixin, viewsets.GenericViewSet
+):
+    """Класс ViewSet с миксинами для получения списка произведений
+    и для создания произведений.
+    """
+
+    queryset = Title.objects.all()
+    permissions = (AdminOnlyExceptUpdateDestroy,)
+    pagination_class = LimitOffsetPagination
+    filter_backends = (SearchFilter,)
+    search_fields = ('category', 'genre', 'name', 'year')
+
+    def get_serializer_class(self):
+        """Метод определяющий какой сериализатор использовать."""
+        if self.request.method == 'POST':
+            return TitleCreateSerializer
+        return TitleSerializer
+
+    def get_queryset(self):
+        """Метод определяющий какие произведения показывать."""
+        queryset = Title.objects.all()
+        category = self.request.query_params.get('category')
+        genre = self.request.query_params.get('genre')
+        name = self.request.query_params.get('name')
+        year = self.request.query_params.get('year')
+        if category:
+            queryset = queryset.filter(category__slug=category)
+        if genre:
+            queryset = queryset.filter(genre__slug=genre)
+        if name:
+            queryset = queryset.filter(name__icontains=name)
+        if year:
+            queryset = queryset.filter(year=year)
+        return queryset
+
+    def create(self, request, *args, **kwargs):
+        """Метод создающий произведение."""
+        if resp_error := check_admin_permission(request):
+            return resp_error
+        return super().create(request, *args, **kwargs)
