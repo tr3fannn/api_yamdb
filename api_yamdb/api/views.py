@@ -23,6 +23,7 @@ from reviews.models import Category, Genre, Review, Title
 
 from .permissions import (
     AdminOnlyExceptUpdateDestroy,
+    IsOwnerOrModerOrAdmin,
     check_admin_permission,
     check_authentication,
     check_self_action,
@@ -272,7 +273,7 @@ class CommentViewSet(viewsets.ModelViewSet):
 
     serializer_class = CommentSerializer
     lookup_url_kwarg = 'comment_id'
-    # permission_classes = (CommentPermissions,)
+    permission_classes = (IsOwnerOrModerOrAdmin,)
 
     def _get_special_review(self):
         """Логика получения отзыва."""
