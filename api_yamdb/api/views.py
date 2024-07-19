@@ -52,7 +52,7 @@ class CreateUserView(views.APIView):
         user = User.objects.get(username=username, email=email)
         user.code = code
         user.save()
-        send_mail('Регистрация на YamDB', f'{code}', 'YamDB@ya.ru', [email])
+        send_mail('Регистрация на YamDB', f'{code}', None, [email])
 
     def post(self, request):
         """Логика регистрации нового пользователя."""

@@ -110,3 +110,5 @@ SIMPLE_JWT = {
 }
 
 AUTH_USER_MODEL = 'reviews.User'
+
+DEFAULT_FROM_EMAIL = 'YamDB@ya.ru'
