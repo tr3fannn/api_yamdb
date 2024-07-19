@@ -329,7 +329,7 @@ class TitleViewSetDetail(
     и для изменения произведения.
     """
 
-    queryset = Title.objects.all()
+    queryset = Title.objects.annotate(rating=Avg('reviews__score'))
     lookup_url_kwarg = 'title_id'
 
     def update(self, request, *args, **kwargs):

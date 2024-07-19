@@ -12,13 +12,13 @@ class AdminOnlyExceptUpdateDestroy(permissions.BasePermission):
     def has_permission(self, request, view):
         if request.method not in ['PATCH', 'DELETE']:
             return request.user.is_authenticated and (
-                request.user.is_superuser or request.user.role == 'admin'
+                request.user.is_superuser or request.user.is_admin
             )
         return True
 
     def has_object_permission(self, request, view, obj):
         return request.user.is_authenticated and (
-            request.user.is_superuser or request.user.role == 'admin'
+            request.user.is_superuser or request.user.is_admin
         )
 
 
@@ -36,8 +36,8 @@ class IsOwnerOrModerOrAdmin(permissions.BasePermission):
             return (request.user.is_authenticated
                     and (obj.author == request.user
                          or request.user.is_superuser
-                         or request.user.role == 'admin'
-                         or request.user.role == 'moderator'))
+                         or request.user.is_admin
+                         or request.user.is_moderator))
         return True
 
 
@@ -49,7 +49,7 @@ def check_admin_permission(request):
     """
     if not request.user.is_authenticated:
         return Response(status=status.HTTP_401_UNAUTHORIZED)
-    if request.user.role in ('user', 'moderator'):
+    if request.user.is_user or request.user.is_moderator:
         return Response(status=status.HTTP_403_FORBIDDEN)
     return None
 
@@ -70,6 +70,6 @@ def check_self_action(request, obj):
     Возвращает Response со статусом 403,
     если пользователь пытается выполнить действие с другим пользователем.
     """
-    if request.user != obj and request.user.role == 'user':
+    if request.user != obj and request.user.is_user:
         raise PermissionDenied()
     return None

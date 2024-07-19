@@ -6,6 +6,10 @@ from django.core.validators import (
 )
 from django.db import models
 
+USER = 'user'
+MODERATOR = 'moderator'
+ADMIN = 'admin'
+
 
 class User(AbstractUser):
     """Модель, которая описывает пользователя."""
@@ -63,6 +67,18 @@ class User(AbstractUser):
         help_text='Код для регистрации пользователя',
     )
 
+    @property
+    def is_admin(self):
+        return self.role == ADMIN
+
+    @property
+    def is_user(self):
+        return self.role == USER
+
+    @property
+    def is_moderator(self):
+        return self.role == MODERATOR
+
 
 class Category(models.Model):
     """Модель, которая описывает категорию произведения."""
@@ -103,15 +119,6 @@ class Title(models.Model):
             MaxValueValidator(2024),
         ],
         help_text='Год выпуска произведения',
-    )
-    rating = models.IntegerField(
-        null=True,
-        verbose_name='Рейтинг',
-        validators=[
-            MinValueValidator(1),
-            MaxValueValidator(10),
-        ],
-        help_text='Оценка произведения от 0 до 10',
     )
     description = models.TextField(
         blank=True,
