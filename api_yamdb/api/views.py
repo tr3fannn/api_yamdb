@@ -268,7 +268,7 @@ class ReviewViewSet(viewsets.ModelViewSet):
         return super().destroy(request, *args, **kwargs)
 
 
-class CommentViewSet(viewsets.ModelViewSet):
+class CommentViewSet(viewsets.ModelViewSet): 
     """ViewSet для комментариев."""
 
     serializer_class = CommentSerializer
