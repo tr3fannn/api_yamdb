@@ -1,3 +1,5 @@
+from datetime import date
+
 from django.contrib.auth.models import AbstractUser
 from django.core.validators import (
     MaxValueValidator,
@@ -5,6 +7,12 @@ from django.core.validators import (
     RegexValidator,
 )
 from django.db import models
+
+USER_NAME_LENGTH = 150
+EMAIL_LENGTH = 254
+NAME_LENGTH = 256
+SLUG_LENGTH = 50
+CURRENT_YEAR = date.today().year
 
 
 class User(AbstractUser):
@@ -17,26 +25,26 @@ class User(AbstractUser):
 
     username = models.CharField(
         unique=True,
-        max_length=150,
+        max_length=USER_NAME_LENGTH,
         validators=(RegexValidator(regex=r'^[\w.@+-]+\Z'),),
         verbose_name='Имя Пользователя',
         help_text='Имя Пользователя',
     )
     email = models.EmailField(
         unique=True,
-        max_length=254,
+        max_length=EMAIL_LENGTH,
         verbose_name='Электронная Почта',
         help_text='Электронная Почта',
     )
     first_name = models.CharField(
-        max_length=150,
+        max_length=USER_NAME_LENGTH,
         null=True,
         default=None,
         verbose_name='Имя',
         help_text='Имя Пользователя',
     )
     second_name = models.CharField(
-        max_length=150,
+        max_length=USER_NAME_LENGTH,
         null=True,
         default=None,
         verbose_name='Фамилия',
@@ -56,24 +64,27 @@ class User(AbstractUser):
         help_text='Роль Пользователя',
     )
     code = models.CharField(
-        max_length=150,
+        max_length=SLUG_LENGTH,
         null=True,
         default=None,
         verbose_name='Код',
         help_text='Код для регистрации пользователя',
     )
 
+    def __str__(self):
+        return self.username
+
 
 class Category(models.Model):
     """Модель, которая описывает категорию произведения."""
 
     name = models.CharField(
-        max_length=256,
+        max_length=NAME_LENGTH,
         verbose_name='Название',
         help_text='Название категории произведения',
     )
     slug = models.SlugField(
-        max_length=50,
+        max_length=SLUG_LENGTH,
         unique=True,
         verbose_name='Слаг',
         validators=(RegexValidator(regex=r'^[-a-zA-Z0-9_]+$'),),
@@ -92,7 +103,7 @@ class Title(models.Model):
     """Модель, которая описывает произведение."""
 
     name = models.CharField(
-        max_length=256,
+        max_length=NAME_LENGTH,
         verbose_name='Название',
         help_text='Название произведения',
     )
@@ -100,7 +111,7 @@ class Title(models.Model):
         verbose_name='Год',
         validators=[
             MinValueValidator(0),
-            MaxValueValidator(2024),
+            MaxValueValidator(CURRENT_YEAR),
         ],
         help_text='Год выпуска произведения',
     )
@@ -147,12 +158,12 @@ class Genre(models.Model):
     """Модель, которая описывает жанр произведения."""
 
     name = models.CharField(
-        max_length=256,
+        max_length=NAME_LENGTH,
         verbose_name='Название',
         help_text='Название жанра произведения',
     )
     slug = models.SlugField(
-        max_length=50,
+        max_length=SLUG_LENGTH,
         unique=True,
         verbose_name='Слаг',
         validators=(RegexValidator(regex=r'^[-a-zA-Z0-9_]+$'),),
