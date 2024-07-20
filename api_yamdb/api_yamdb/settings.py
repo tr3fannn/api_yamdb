@@ -19,6 +19,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     # Other
     'rest_framework',
+    'django_filters',
     'rest_framework_simplejwt',
     # Local
     'api',
@@ -110,3 +111,5 @@ SIMPLE_JWT = {
 }
 
 AUTH_USER_MODEL = 'reviews.User'
+
+DEFAULT_FROM_EMAIL = 'YamDB@ya.ru'

@@ -2,8 +2,8 @@ from secrets import token_hex
 
 from django.contrib.auth import get_user_model
 from django.core.mail import send_mail
-from django.db.models import Avg
 from django.shortcuts import get_object_or_404
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import (
     filters,
     mixins,
@@ -12,22 +12,15 @@ from rest_framework import (
     views,
     viewsets,
 )
-from rest_framework.exceptions import (
-    ValidationError,
-)
+from rest_framework.exceptions import ValidationError
 from rest_framework.filters import SearchFilter
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from reviews.models import Category, Genre, Review, Title
 
-from .permissions import (
-    AdminOnlyExceptUpdateDestroy,
-    IsOwnerOrModerOrAdmin,
-    check_admin_permission,
-    check_authentication,
-    check_self_action,
-)
+from .filters import TitleFilter
+from .permissions import AdminOnlyExceptUpdateDestroy, IsOwnerOrModerOrAdmin
 from .serializers import (
     CategorySerializer,
     CommentSerializer,
@@ -36,6 +29,11 @@ from .serializers import (
     TitleCreateSerializer,
     TitleSerializer,
     UserSerializer,
+)
+from .utils import (
+    check_admin_permission,
+    check_authentication,
+    check_self_action,
 )
 
 User = get_user_model()
@@ -50,7 +48,7 @@ class CreateUserView(views.APIView):
         user = User.objects.get(username=username, email=email)
         user.code = code
         user.save()
-        send_mail('Регистрация на YamDB', f'{code}', 'YamDB@ya.ru', [email])
+        send_mail('Регистрация на YamDB', f'{code}', None, [email])
 
     def post(self, request):
         """Логика регистрации нового пользователя."""
@@ -200,12 +198,6 @@ class ReviewViewSet(viewsets.ModelViewSet):
         """Логика получения произведения."""
         return get_object_or_404(Title, pk=self.kwargs.get('title_id'))
 
-    def _save_avg_rating(self):
-        """Логика сохранения средней оценки."""
-        title = self._get_special_title()
-        title.rating = int(title.reviews.aggregate(Avg('score'))['score__avg'])
-        title.save()
-
     def get_queryset(self):
         """Логика получения отзывов."""
         return self._get_special_title().reviews.all()
@@ -221,7 +213,6 @@ class ReviewViewSet(viewsets.ModelViewSet):
                 code=status.HTTP_400_BAD_REQUEST,
             )
         serializer.save(author=self.request.user, title=title)
-        self._save_avg_rating()
 
     def create(self, request, *args, **kwargs):
         """
@@ -246,7 +237,6 @@ class ReviewViewSet(viewsets.ModelViewSet):
             is None
         ):
             raise error_response
-        self._save_avg_rating()
         return super().partial_update(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):
@@ -264,7 +254,6 @@ class ReviewViewSet(viewsets.ModelViewSet):
             is None
         ):
             raise error_response
-        self._save_avg_rating()
         return super().destroy(request, *args, **kwargs)
 
 
@@ -319,11 +308,22 @@ class CommentViewSet(viewsets.ModelViewSet):
         return super().destroy(request, *args, **kwargs)
 
 
+class TitleAvgRating:
+    def save_avg_rating(self, title):
+        """Логика сохранения средней оценки."""
+        scores = title.reviews.values_list('score', flat=True)
+        if not scores:
+            return None
+        avg_rating = sum(scores) / len(scores)
+        return avg_rating
+
+
 class TitleViewSetDetail(
     mixins.RetrieveModelMixin,
     mixins.DestroyModelMixin,
     mixins.UpdateModelMixin,
     viewsets.GenericViewSet,
+    TitleAvgRating,
 ):
     """Класс ViewSet с миксинами для получения одного произведения
     и для изменения произведения.
@@ -352,9 +352,20 @@ class TitleViewSetDetail(
             return TitleSerializer
         return TitleCreateSerializer
 
+    def retrieve(self, request, *args, **kwargs):
+        """Переопределяем, чтобы прокидывать в сериализатор rating."""
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        data = serializer.data
+        data['rating'] = self.save_avg_rating(instance)
+        return Response(data)
+
 
 class TitleViewSetListCreate(
-    mixins.ListModelMixin, mixins.CreateModelMixin, viewsets.GenericViewSet
+    mixins.ListModelMixin,
+    mixins.CreateModelMixin,
+    viewsets.GenericViewSet,
+    TitleAvgRating,
 ):
     """Класс ViewSet с миксинами для получения списка произведений
     и для создания произведений.
@@ -363,7 +374,11 @@ class TitleViewSetListCreate(
     queryset = Title.objects.all()
     permissions = (AdminOnlyExceptUpdateDestroy,)
     pagination_class = LimitOffsetPagination
-    filter_backends = (SearchFilter,)
+    filter_backends = (
+        DjangoFilterBackend,
+        SearchFilter,
+    )
+    filterset_class = TitleFilter
     search_fields = ('category', 'genre', 'name', 'year')
 
     def get_serializer_class(self):
@@ -372,25 +387,26 @@ class TitleViewSetListCreate(
             return TitleCreateSerializer
         return TitleSerializer
 
-    def get_queryset(self):
-        """Метод определяющий какие произведения показывать."""
-        queryset = Title.objects.all()
-        category = self.request.query_params.get('category')
-        genre = self.request.query_params.get('genre')
-        name = self.request.query_params.get('name')
-        year = self.request.query_params.get('year')
-        if category:
-            queryset = queryset.filter(category__slug=category)
-        if genre:
-            queryset = queryset.filter(genre__slug=genre)
-        if name:
-            queryset = queryset.filter(name__icontains=name)
-        if year:
-            queryset = queryset.filter(year=year)
-        return queryset
-
     def create(self, request, *args, **kwargs):
         """Метод создающий произведение."""
         if resp_error := check_admin_permission(request):
             return resp_error
         return super().create(request, *args, **kwargs)
+
+    def list(self, request, *args, **kwargs):
+        """Переопределяем, чтобы прокидывать в сериализатор rating."""
+        queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            for title in serializer.data:
+                title['rating'] = self.save_avg_rating(
+                    Title.objects.get(id=title['id'])
+                )
+            return self.get_paginated_response(serializer.data)
+        serializer = self.get_serializer(queryset, many=True)
+        for title in serializer.data:
+            title['rating'] = self.save_avg_rating(
+                Title.objects.get(id=title['id'])
+            )
+        return Response(serializer.data)
