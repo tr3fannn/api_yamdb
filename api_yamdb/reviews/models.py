@@ -1,4 +1,5 @@
 from datetime import date
+from enum import Enum
 
 from django.contrib.auth.models import AbstractUser
 from django.core.validators import (
@@ -15,13 +16,21 @@ SLUG_LENGTH = 50
 CURRENT_YEAR = date.today().year
 
 
+class UserCustomRoles(Enum):
+    """Модель, которая описывает роли пользователя."""
+
+    USER = 'user'
+    MODERATOR = 'moderator'
+    ADMIN = 'admin'
+
+
 class User(AbstractUser):
     """Модель, которая описывает пользователя."""
 
     class Roles(models.TextChoices):
-        USER = 'user', 'Пользователь'
-        MODERATOR = 'moderator', 'Модератор'
-        ADMIN = 'admin', 'Администратор'
+        USER = UserCustomRoles.USER.value, 'Пользователь'
+        MODERATOR = UserCustomRoles.MODERATOR.value, 'Модератор'
+        ADMIN = UserCustomRoles.ADMIN.value, 'Администратор'
 
     username = models.CharField(
         unique=True,
@@ -73,6 +82,10 @@ class User(AbstractUser):
 
     def __str__(self):
         return self.username
+
+    class Meta:
+        verbose_name = 'Пользователь'
+        verbose_name_plural = 'Пользователи'
 
 
 class Category(models.Model):
@@ -185,7 +198,7 @@ class Review(models.Model):
         verbose_name='Текст',
         help_text='Текст обзора произведения',
     )
-    score = models.IntegerField(
+    score = models.PositiveSmallIntegerField(
         validators=[
             MinValueValidator(1),
             MaxValueValidator(10),

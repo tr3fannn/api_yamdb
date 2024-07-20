@@ -1,9 +1,11 @@
+from http import HTTPMethod
 from secrets import token_hex
 
 from django.contrib.auth import get_user_model
 from django.core.mail import send_mail
 from django.db.models import Avg
 from django.shortcuts import get_object_or_404
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import (
     filters,
     mixins,
@@ -12,24 +14,15 @@ from rest_framework import (
     views,
     viewsets,
 )
-from rest_framework.exceptions import (
-    ValidationError,
-)
+from rest_framework.exceptions import ValidationError
 from rest_framework.filters import SearchFilter
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 from reviews.models import Category, Genre, Review, Title
 
-from .permissions import (
-    AdminOnlyExceptUpdateDestroy,
-    IsOwnerOrModerOrAdmin,
-)
-from .utils import (
-    check_admin_permission,
-    check_authentication,
-    check_self_action,
-)
+from .filters import TitleFilter
+from .permissions import AdminOnlyExceptUpdateDestroy, IsOwnerOrModerOrAdmin
 from .serializers import (
     CategorySerializer,
     CommentSerializer,
@@ -38,6 +31,11 @@ from .serializers import (
     TitleCreateSerializer,
     TitleSerializer,
     UserSerializer,
+)
+from .utils import (
+    check_admin_permission,
+    check_authentication,
+    check_self_action,
 )
 
 User = get_user_model()
@@ -350,7 +348,7 @@ class TitleViewSetDetail(
 
     def get_serializer_class(self):
         """Метод определяющий какой сериализатор использовать."""
-        if self.request.method == 'GET':
+        if self.request.method == HTTPMethod.GET:
             return TitleSerializer
         return TitleCreateSerializer
 
@@ -365,31 +363,18 @@ class TitleViewSetListCreate(
     queryset = Title.objects.all()
     permissions = (AdminOnlyExceptUpdateDestroy,)
     pagination_class = LimitOffsetPagination
-    filter_backends = (SearchFilter,)
+    filter_backends = (
+        DjangoFilterBackend,
+        SearchFilter,
+    )
+    filterset_class = TitleFilter
     search_fields = ('category', 'genre', 'name', 'year')
 
     def get_serializer_class(self):
         """Метод определяющий какой сериализатор использовать."""
-        if self.request.method == 'POST':
+        if self.request.method == HTTPMethod.POST:
             return TitleCreateSerializer
         return TitleSerializer
-
-    def get_queryset(self):
-        """Метод определяющий какие произведения показывать."""
-        queryset = Title.objects.all()
-        category = self.request.query_params.get('category')
-        genre = self.request.query_params.get('genre')
-        name = self.request.query_params.get('name')
-        year = self.request.query_params.get('year')
-        if category:
-            queryset = queryset.filter(category__slug=category)
-        if genre:
-            queryset = queryset.filter(genre__slug=genre)
-        if name:
-            queryset = queryset.filter(name__icontains=name)
-        if year:
-            queryset = queryset.filter(year=year)
-        return queryset
 
     def create(self, request, *args, **kwargs):
         """Метод создающий произведение."""
