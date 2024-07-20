@@ -61,6 +61,13 @@ class TitleSerializer(serializers.ModelSerializer):
             'category',
         )
 
+    def validate_rating(self, value):
+        if value < 1 or value > 10 or value is None:
+            raise serializers.ValidationError(
+                'Рейтинг должен быть от 1 до 10, либо пустым (None).'
+            )
+        return value
+
 
 class TitleCreateSerializer(serializers.ModelSerializer):
     """Сериализатор только для создания произведений."""

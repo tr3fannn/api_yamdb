@@ -157,10 +157,10 @@ title = [
     ),
 ]
 urlpatterns = [
-    path('', include(users)),
-    path('', include(category)),
-    path('', include(genre)),
-    path('', include(comment)),
-    path('', include(review)),
-    path('', include(title)),
+    path('v1/', include(users)),
+    path('v1/', include(category)),
+    path('v1/', include(genre)),
+    path('v1/', include(comment)),
+    path('v1/', include(review)),
+    path('v1/', include(title)),
 ]
