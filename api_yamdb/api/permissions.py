@@ -1,5 +1,3 @@
-from http import HTTPMethod
-
 from rest_framework import permissions
 from reviews.models import UserCustomRoles
 
@@ -11,7 +9,7 @@ class AdminOnlyExceptUpdateDestroy(permissions.BasePermission):
     """
 
     def has_permission(self, request, view):
-        if request.method not in [HTTPMethod.PATCH, HTTPMethod.DELETE]:
+        if request.method not in ['PATCH', 'DELETE']:
             return request.user.is_authenticated and (
                 request.user.is_superuser
                 or request.user.role == UserCustomRoles.ADMIN.value

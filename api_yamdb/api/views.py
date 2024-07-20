@@ -1,5 +1,3 @@
-
-from http import HTTPMethod
 from secrets import token_hex
 
 from django.contrib.auth import get_user_model
@@ -350,7 +348,7 @@ class TitleViewSetDetail(
 
     def get_serializer_class(self):
         """Метод определяющий какой сериализатор использовать."""
-        if self.request.method == HTTPMethod.GET:
+        if self.request.method == 'GET':
             return TitleSerializer
         return TitleCreateSerializer
 
@@ -385,7 +383,7 @@ class TitleViewSetListCreate(
 
     def get_serializer_class(self):
         """Метод определяющий какой сериализатор использовать."""
-        if self.request.method == HTTPMethod.POST:
+        if self.request.method == 'POST':
             return TitleCreateSerializer
         return TitleSerializer
 
