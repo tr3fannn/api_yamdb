@@ -1,0 +1,67 @@
+[
+    {
+        "model": "reviews.user",
+        "pk": 1,
+        "fields": {
+            "id": "100",
+            "username": "bingobongo",
+            "email": "bingobongo@yamdb.fake",
+            "role": "user",
+            "bio": "",
+            "first_name": "",
+            "last_name": ""
+        }
+    },
+    {
+        "model": "reviews.user",
+        "pk": 2,
+        "fields": {
+            "id": "101",
+            "username": "capt_obvious",
+            "email": "capt_obvious@yamdb.fake",
+            "role": "admin",
+            "bio": "",
+            "first_name": "",
+            "last_name": ""
+        }
+    },
+    {
+        "model": "reviews.user",
+        "pk": 3,
+        "fields": {
+            "id": "102",
+            "username": "faust",
+            "email": "faust@yamdb.fake",
+            "role": "user",
+            "bio": "",
+            "first_name": "",
+            "last_name": ""
+        }
+    },
+    {
+        "model": "reviews.user",
+        "pk": 4,
+        "fields": {
+            "id": "103",
+            "username": "reviewer",
+            "email": "reviewer@yamdb.fake",
+            "role": "user",
+            "bio": "",
+            "first_name": "",
+            "last_name": ""
+        }
+    },
+    {
+        "model": "reviews.user",
+        "pk": 5,
+        "fields": {
+            "id": "104",
+            "username": "angry",
+            "email": "angry@yamdb.fake",
+            "role": "moderator",
+            "bio": "",
+            "first_name": "",
+            "last_name": ""
+        }
+    }
+]

@@ -1,0 +1,29 @@
+[
+    {
+        "model": "reviews.category",
+        "pk": 1,
+        "fields": {
+            "id": "1",
+            "name": "Фильм",
+            "slug": "movie"
+        }
+    },
+    {
+        "model": "reviews.category",
+        "pk": 2,
+        "fields": {
+            "id": "2",
+            "name": "Книга",
+            "slug": "book"
+        }
+    },
+    {
+        "model": "reviews.category",
+        "pk": 3,
+        "fields": {
+            "id": "3",
+            "name": "Музыка",
+            "slug": "music"
+        }
+    }
+]
