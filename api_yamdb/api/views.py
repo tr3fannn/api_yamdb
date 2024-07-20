@@ -1,3 +1,4 @@
+
 from http import HTTPMethod
 from secrets import token_hex
 
@@ -199,11 +200,6 @@ class ReviewViewSet(viewsets.ModelViewSet):
         """Логика получения произведения."""
         return get_object_or_404(Title, pk=self.kwargs.get('title_id'))
 
-    # def _save_avg_rating(self):
-    #     """Логика сохранения средней оценки."""
-    #     title = self._get_special_title()
-    #     rating = int(title.reviews.aggregate(Avg('score'))['score__avg'])
-
     def get_queryset(self):
         """Логика получения отзывов."""
         return self._get_special_title().reviews.all()
@@ -219,7 +215,6 @@ class ReviewViewSet(viewsets.ModelViewSet):
                 code=status.HTTP_400_BAD_REQUEST,
             )
         serializer.save(author=self.request.user, title=title)
-        # self._save_avg_rating()
 
     def create(self, request, *args, **kwargs):
         """
@@ -244,7 +239,6 @@ class ReviewViewSet(viewsets.ModelViewSet):
             is None
         ):
             raise error_response
-        # self._save_avg_rating()
         return super().partial_update(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):
@@ -262,7 +256,6 @@ class ReviewViewSet(viewsets.ModelViewSet):
             is None
         ):
             raise error_response
-        # self._save_avg_rating()
         return super().destroy(request, *args, **kwargs)
 
 
