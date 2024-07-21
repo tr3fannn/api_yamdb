@@ -1,3 +1,5 @@
+from datetime import date
+
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 from reviews.models import Category, Comment, Genre, Review, Title
@@ -65,6 +67,15 @@ class TitleSerializer(serializers.ModelSerializer):
         if value < 1 or value > 10 or value is None:
             raise serializers.ValidationError(
                 'Рейтинг должен быть от 1 до 10, либо пустым (None).'
+            )
+        return value
+
+    def validate_year(self, value):
+        """Проверяет чтобы год не был в будущем."""
+
+        if value > date.today().year:
+            raise serializers.ValidationError(
+                'Год выпуска не может быть в будущем!'
             )
         return value
 

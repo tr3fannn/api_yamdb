@@ -1,4 +1,3 @@
-from datetime import date
 from enum import Enum
 
 from django.contrib.auth.models import AbstractUser
@@ -13,7 +12,6 @@ USER_NAME_LENGTH = 150
 EMAIL_LENGTH = 254
 NAME_LENGTH = 256
 SLUG_LENGTH = 50
-CURRENT_YEAR = date.today().year
 
 
 class UserCustomRoles(Enum):
@@ -122,10 +120,6 @@ class Title(models.Model):
     )
     year = models.IntegerField(
         verbose_name='Год',
-        validators=[
-            MinValueValidator(0),
-            MaxValueValidator(CURRENT_YEAR),
-        ],
         help_text='Год выпуска произведения',
     )
     description = models.TextField(
