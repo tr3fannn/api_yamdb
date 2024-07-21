@@ -1,5 +1,6 @@
 from secrets import token_hex
 
+from django.db.models import Avg
 from django.contrib.auth import get_user_model
 from django.core.mail import send_mail
 from django.shortcuts import get_object_or_404
@@ -308,28 +309,17 @@ class CommentViewSet(viewsets.ModelViewSet):
         return super().destroy(request, *args, **kwargs)
 
 
-class TitleAvgRating:
-    def save_avg_rating(self, title):
-        """Логика сохранения средней оценки."""
-        scores = title.reviews.values_list('score', flat=True)
-        if not scores:
-            return None
-        avg_rating = sum(scores) / len(scores)
-        return avg_rating
-
-
 class TitleViewSetDetail(
     mixins.RetrieveModelMixin,
     mixins.DestroyModelMixin,
     mixins.UpdateModelMixin,
     viewsets.GenericViewSet,
-    TitleAvgRating,
 ):
     """Класс ViewSet с миксинами для получения одного произведения
     и для изменения произведения.
     """
 
-    queryset = Title.objects.all()
+    queryset = Title.objects.annotate(rating=Avg('reviews__score'))
     lookup_url_kwarg = 'title_id'
 
     def update(self, request, *args, **kwargs):
@@ -352,20 +342,11 @@ class TitleViewSetDetail(
             return TitleSerializer
         return TitleCreateSerializer
 
-    def retrieve(self, request, *args, **kwargs):
-        """Переопределяем, чтобы прокидывать в сериализатор rating."""
-        instance = self.get_object()
-        serializer = self.get_serializer(instance)
-        data = serializer.data
-        data['rating'] = self.save_avg_rating(instance)
-        return Response(data)
-
 
 class TitleViewSetListCreate(
     mixins.ListModelMixin,
     mixins.CreateModelMixin,
     viewsets.GenericViewSet,
-    TitleAvgRating,
 ):
     """Класс ViewSet с миксинами для получения списка произведений
     и для создания произведений.
@@ -392,21 +373,3 @@ class TitleViewSetListCreate(
         if resp_error := check_admin_permission(request):
             return resp_error
         return super().create(request, *args, **kwargs)
-
-    def list(self, request, *args, **kwargs):
-        """Переопределяем, чтобы прокидывать в сериализатор rating."""
-        queryset = self.filter_queryset(self.get_queryset())
-        page = self.paginate_queryset(queryset)
-        if page is not None:
-            serializer = self.get_serializer(page, many=True)
-            for title in serializer.data:
-                title['rating'] = self.save_avg_rating(
-                    Title.objects.get(id=title['id'])
-                )
-            return self.get_paginated_response(serializer.data)
-        serializer = self.get_serializer(queryset, many=True)
-        for title in serializer.data:
-            title['rating'] = self.save_avg_rating(
-                Title.objects.get(id=title['id'])
-            )
-        return Response(serializer.data)
